@@ -1,31 +1,38 @@
-{ stdenv, fetchFromGitHub, curl, git, gmp, libsigsegv, meson, ncurses, ninja
-, openssl, pkgconfig, re2c, zlib
-}:
+{ stdenv, fetchgit, curl, cacert }:
 
-stdenv.mkDerivation rec {
+let
+
   pname = "urbit";
-  version = "0.7.3";
 
-  src = fetchFromGitHub {
-    owner = "urbit";
-    repo = "urbit";
-    rev = "v${version}";
-    sha256 = "192843pjzh8z55fd0x70m3l1vncmixljia3nphgn7j7x4976xkp2";
+  version = "0.10.7";
+
+  urbit-derivs = (fetchgit
+  {
+    url = "https://github.com/urbit/urbit.git";
+    rev = "urbit-v${version}";
+    sha256 = "172jdg9csray0imjsqyf8dlbf787q0cx0l9p0hpbj3f4gwzsl8l8";
     fetchSubmodules = true;
-  };
+    leaveDotGit = true;
+    postFetch = ''
+      cd $out/bin
+      curl -OL https://github.com/urbit/urbit/raw/$rev/bin/ivory.pill
+    '';
+  }
+  ).overrideAttrs (oldAttrs: {
+  nativeBuildInputs = oldAttrs.nativeBuildInputs or [] ++ [ curl cacert ]; });
 
-  nativeBuildInputs = [ pkgconfig ninja meson ];
-  buildInputs = [ curl git gmp libsigsegv ncurses openssl re2c zlib ];
+in
 
-  postPatch = ''
-    patchShebangs .
-  '';
+  with import urbit-derivs;
 
-  meta = with stdenv.lib; {
-    description = "An operating function";
-    homepage = https://urbit.org;
-    license = licenses.mit;
-    maintainers = with maintainers; [ mudri ];
-    platforms = with platforms; linux;
-  };
-}
+  urbit.overrideAttrs (_: {
+    inherit pname version;
+
+    meta = with stdenv.lib; {
+      description = "A personal server operating function";
+      homepage = https://urbit.org;
+      license = licenses.mit;
+      maintainers = with maintainers; [ jtobin ];
+      platforms = with platforms; linux ++ darwin;
+    };
+  })
